@@ -1,368 +1,149 @@
-# Brain Multi-Omics Analysis Pipeline
+# Trem2*R47H Differential Splicing Analysis Workflow
 
-[![R](https://img.shields.io/badge/R-%3E%3D4.2.0-blue)](https://www.r-project.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Bioconductor](https://img.shields.io/badge/Bioconductor-%3E%3D3.16-green)](https://bioconductor.org/)
+[![DOI](https://img.shields.io/badge/DOI-10.1186%2Fs12864--023--09280--x-blue)](https://doi.org/10.1186/s12864-023-09280-x)
+[![BMC Genomics](https://img.shields.io/badge/Published-BMC%20Genomics%202023-green)](https://link.springer.com/article/10.1186/s12864-023-09280-x)
 
-A reproducible R-based pipeline for end-to-end analysis of **DIA proteomics** and **bulk RNA-seq transcriptomics** data from mouse or human brain tissue. Originally developed for Alzheimer's disease mouse models but generalized for any case-control multi-omics study with multiple genotypes, sexes, and timepoints.
+This repository contains the complete bioinformatics workflow used in:
 
----
-
-## 📋 What This Pipeline Does
-
-### Notebook 01 — DIA Proteomics Pipeline
-
-| Step | Analysis |
-|------|----------|
-| QC | Protein abundance matrix loading, boxplot QC, summarization to protein level |
-| PCA | Probabilistic PCA (handles missing values) with metadata overlay |
-| Differential Abundance | ANOVA + Tukey HSD post-hoc, stratified by sex and age |
-| Visualization | Volcano plots, DEP barplots, UpSet overlap plots, expression boxplots |
-| Functional Enrichment | KEGG pathway ORA via `clusterProfiler` |
-
-### Notebook 02 — Proteomics Human Translation Analysis
-
-| Step | Analysis |
-|------|----------|
-| Linear Modeling | `abundance ~ Genotype + Age + Sex` per protein with covariate control |
-| Module Correlation (logFC) | Pearson correlation of ANOVA fold-changes with human AD co-expression modules |
-| Module Correlation (LM) | Pearson correlation of LM estimates with human AD co-expression modules |
-| BioDomain ORA | GO over-representation analysis annotated with AMP-AD biological domains |
-| BioDomain GSEA | Full ranked GSEA annotated with AMP-AD biological domains |
-| Sub-BioDomain | Portrait and landscape plots across AD biological sub-domains |
-
-### Notebook 03 — RNA-seq Transcriptomics Pipeline
-
-| Step | Analysis |
-|------|----------|
-| Data Inspection | Metadata loading, count matrix QC, transgene merging (optional) |
-| Isoform Expression | Visualization of specific gene isoforms e.g. human MAPT (optional) |
-| Sex Validation | Xist / Ddx3y expression to confirm sex assignments |
-| PCA | DESeq2 VST-based PCA + PCAtools biplot and eigencorplot |
-| Differential Expression | DESeq2 pairwise comparisons, stratified by sex and age |
-| Visualization | Volcano plots, DEG barplots |
-| Functional Enrichment | KEGG pathway ORA via `clusterProfiler` |
-
-### Notebook 04 — RNA-seq Human Translation Analysis
-
-| Step | Analysis |
-|------|----------|
-| Module Correlation (logFC) | Pearson correlation of DESeq2 logFC with sex-stratified AMP-AD modules |
-| Linear Modeling | Per-gene LM on TPM data with genotype, sex, and age covariates |
-| Module Correlation (LM) | Pearson correlation of LM estimates with AMP-AD modules |
-| AD Subtype Correlation | Correlation with Nikhil et al. and Neff et al. AD subtype signatures |
-| BioDomain Correlation (LM) | LM estimates vs AMP-AD BioDomain reference fold-changes |
-| BioDomain ORA | GO over-representation annotated with AMP-AD biological domains |
-| BioDomain GSEA | Full ranked GSEA annotated with AMP-AD biological domains |
+> **Pandey RS, Kotredes KP, Sasner M, Howell GR, Carter GW.**
+> Differential splicing of neuronal genes in a Trem2\*R47H mouse model mimics alterations associated with Alzheimer's disease.
+> *BMC Genomics*. 2023;24:172.
+> [https://doi.org/10.1186/s12864-023-09280-x](https://doi.org/10.1186/s12864-023-09280-x)
 
 ---
 
-## 🗂️ Repository Structure
+## Overview
 
-```
-brain-multiomics-pipeline/
-│
-├── README.md                                        # This file
-├── LICENSE                                          # MIT license
-├── .gitignore                                       # Excludes data, results, and large files
-│
-├── notebooks/
-│   ├── 01_DIA_Proteomics_Pipeline.Rmd               # Proteomics QC, PCA, ANOVA, KEGG
-│   ├── 02_Human_Translation_Analysis.Rmd            # Proteomics LM, modules, BioDomain
-│   ├── 03_RNAseq_Pipeline.Rmd                       # RNA-seq QC, PCA, DESeq2, KEGG
-│   └── 04_RNAseq_Human_Translation.Rmd              # RNA-seq LM, modules, subtypes, BioDomain
-│
-├── R/
-│   ├── Helper_Functions_Prot.R                      # Proteomics utility functions
-│   └── Helper_Functions.R                           # Transcriptomics utility functions
-│
-├── data/
-│   └── example/
-│       ├── example_abundance.csv                    # Example protein abundance matrix
-│       └── example_traits.csv                       # Example sample metadata
-│
-├── figures/                                         # Example output figures
-│
-├── results/                                         # gitignored — outputs saved here locally
-│
-└── docs/
-    └── input_format.md                              # Detailed input file format guide
-```
+We performed differential gene expression and differential splicing analyses on whole-brain transcriptomes from aging mouse models carrying humanized *APOE4* and/or the *Trem2\*R47H* variant on a C57BL/6J background. This workflow documents every computational step from raw FASTQ processing through functional annotation, enabling full reproduction of published results.
 
-> **Run order:** Notebooks must be run in sequence within each omics type.
-> Notebook 02 requires outputs from 01. Notebook 04 requires outputs from 03.
-> The proteomics and transcriptomics pipelines are independent of each other.
+**Key findings:**
+- Differentially expressed genes in *Trem2\*R47H* mice were enriched in immune and metabolic pathways
+- Differentially spliced genes were enriched in neuronal functions (GABAergic and glutamatergic synapse)
+- Significant overlap was observed between spliced genes in *Trem2\*R47H* mice and human AD subjects
+- These effects were absent in *APOE4* mice and suppressed in *APOE4·Trem2\*R47H* double mutant mice
 
 ---
 
-## ⚙️ Requirements
+## Workflow Summary
 
-### R Version
-R ≥ 4.2.0
+The full step-by-step workflow is documented in [WORKFLOW.md](WORKFLOW.md).
 
-### CRAN Packages
-```r
-install.packages(c(
-  "tidyverse", "gt", "UpSetR", "data.table", "broom",
-  "ggpubr", "ggh4x", "corrplot", "cowplot", "ggrepel",
-  "matrixStats", "VennDiagram", "readxl", "readr"
-))
+### Part 1 — Upstream RNA-seq Processing (Unix)
+
+| Step | Tool | Version | Purpose |
+|------|------|---------|---------|
+| 1 | FastQC | v0.11.3 | Read quality assessment |
+| 2 | Trimmomatic | v0.33 | Adapter and quality trimming |
+| 3 | STAR | v2.5.3 | Alignment to reference genome |
+| 4 | HTSeq | v0.8.0 | Gene-level read counting |
+| 5 | RSEM | v1.3.3 | Isoform-level quantification |
+
+### Part 2 — Downstream Analysis (R)
+
+| Step | Tool | Version | Purpose |
+|------|------|---------|---------|
+| 6 | DESeq2 | v1.16.1 | Differential gene expression |
+| 7 | DEXSeq | v1.40.0 | Differential exon usage |
+| 8 | IsoformSwitchAnalyzeR | v1.20.0 | Isoform switch analysis |
+| 9 | clusterProfiler | — | KEGG and GO enrichment |
+| 10 | — | — | Cell type enrichment (Fisher's exact test) |
+| 11 | RBPmap | — | RNA-binding protein site prediction |
+| 12 | — | — | Overlap with human AD splicing studies |
+
+---
+
+## Data Availability
+
+Raw sequencing data and processed count matrices are available on Synapse:
+
+> [https://www.synapse.org/Synapse:syn71961630](https://www.synapse.org/Synapse:syn71961630)
+
+```bash
+# Download raw data using the Synapse client
+synapse get syn71990921   # gene raw counts
+synapse get syn71990919   # gene TPM
+synapse get syn71990920   # isoform raw counts
+synapse get syn71990918   # isoform TPM
+synapse get syn71990922   # metadata
 ```
 
-### Bioconductor Packages
+---
+
+## Repository Structure
+
+```
+Trem2-RNAseq-splicing-workflow/
+│
+├── README.md          # This file
+├── WORKFLOW.md        # Complete 12-step documented workflow
+├── LICENSE            # MIT license
+│
+└── scripts/
+    ├── DEG_function.R              # DESeq2 wrapper function
+    ├── ENRICHGO_function.R         # GO enrichment function
+    └── cell_type_enrichment.R      # Fisher's exact test for cell types
+```
+
+---
+
+## Requirements
+
+### Unix Environment (Part 1)
+
+| Tool | Version | Installation |
+|------|---------|-------------|
+| FastQC | v0.11.3 | [bioinformatics.babraham.ac.uk](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/) |
+| Trimmomatic | v0.33 | [usadellab.org](http://www.usadellab.org/cms/?page=trimmomatic) |
+| STAR | v2.5.3 | [github.com/alexdobin/STAR](https://github.com/alexdobin/STAR) |
+| Picard | v1.95 | [broadinstitute.github.io/picard](https://broadinstitute.github.io/picard/) |
+| SAMtools | v1.10 | [samtools.sourceforge.net](http://samtools.sourceforge.net) |
+| HTSeq | v0.8.0 | [htseq.readthedocs.io](https://htseq.readthedocs.io) |
+| RSEM | v1.3.3 | [github.com/deweylab/RSEM](https://github.com/deweylab/RSEM) |
+
+### R Environment (Part 2)
+
 ```r
 if (!require("BiocManager", quietly = TRUE))
     install.packages("BiocManager")
 
 BiocManager::install(c(
-  # Core
-  "AnnotationDbi",     # Gene ID mapping
-  "clusterProfiler",   # Pathway enrichment (ORA and GSEA)
-  "enrichplot",        # Enrichment visualization
-  "ComplexHeatmap",    # Heatmap visualization
-
-  # Proteomics specific
-  "pcaMethods",        # Probabilistic PCA (handles missing values)
-
-  # Transcriptomics specific
-  "DESeq2",            # Differential expression
-  "PCAtools",          # Advanced PCA and eigencorplot
-  "DEGreport",         # DEG reporting utilities
-  "ReactomePA",        # Reactome pathway analysis
-  "limma",             # Linear models for omics
-
-  # Organism annotation — install only what you need
-  "org.Mm.eg.db",      # Mouse
-  "org.Hs.eg.db",      # Human
-  "org.Rn.eg.db"       # Rat
+  "DESeq2",
+  "DEXSeq",
+  "IsoformSwitchAnalyzeR",
+  "clusterProfiler",
+  "org.Mm.eg.db",
+  "AnnotationDbi",
+  "BiocParallel",
+  "BSgenome.Mmusculus.UCSC.mm10"
 ))
-```
 
-> **Species note:** Only one organism package is needed per study. Set `organism_db` in the USER CONFIGURATION block of each notebook.
-
-### Optional — Human Translation (Notebooks 02 and 04)
-
-External reference datasets required for human comparison analyses:
-
-| Reference | Source | Used in | Used for |
-|-----------|--------|---------|----------|
-| AMP-AD co-expression modules | AMP-AD Knowledge Portal | 02, 04 | Module logFC and LM correlation |
-| AMP-AD sex-stratified modules | AMP-AD Knowledge Portal | 04 | Sex-specific module correlation |
-| BioDomain annotations | [Agora / AMP-AD](https://agora.adknowledgeportal.org) | 02, 04 | GO term → BioDomain mapping |
-| Domain color table | AMP-AD | 02, 04 | BioDomain plot styling |
-| Nikhil et al. AD subtypes | [Rao et al. 2021](https://pubmed.ncbi.nlm.nih.gov/32492070/) | 04 | AD subtype correlation |
-| Neff et al. AD subtypes | [Neff et al. 2021](https://pubmed.ncbi.nlm.nih.gov/33523961/) | 04 | AD subtype correlation |
-
----
-
-## 🚀 Quick Start
-
-### Proteomics Pipeline (Notebooks 01 → 02)
-
-**Step 1:** Prepare your input files (see `docs/input_format.md`):
-- Normalized protein abundance matrix (CSV)
-- Sample metadata (CSV)
-
-**Step 2:** Configure and run notebook 01:
-
-```r
-# Key settings in the USER CONFIGURATION block:
-data_dir         <- "../data/"
-abundance_file   <- "your_abundance_file.csv"
-traits_file      <- "your_metadata_file.csv"
-result_dir       <- "../results/"
-
-control_genotype <- "Your_Control_Genotype"
-case_genotypes   <- c("Case_1", "Case_2", "Case_3")
-age_groups       <- c(4, 12)
-organism_db      <- "org.Mm.eg.db"    # swap for human
-kegg_organism    <- "mmu"             # "hsa" for human
-
-rmarkdown::render("notebooks/01_DIA_Proteomics_Pipeline.Rmd")
-```
-
-**Step 3:** Configure and run notebook 02 (optional):
-
-```r
-# Enable only the analyses you have reference data for
-run_module_corr    <- TRUE
-run_biodomain_ora  <- TRUE
-run_biodomain_gsea <- TRUE
-run_lm_analysis    <- TRUE
-
-rmarkdown::render("notebooks/02_Human_Translation_Analysis.Rmd")
+install.packages(c("tidyverse", "xlsx"))
 ```
 
 ---
 
-### Transcriptomics Pipeline (Notebooks 03 → 04)
+## Reference Genome
 
-**Step 1:** Prepare your input files:
-- RSEM gene count matrix (TSV)
-- RSEM gene TPM matrix (TSV)
-- Sample metadata (CSV)
-- Optionally: isoform TPM matrix (TSV)
-
-**Step 2:** Configure and run notebook 03:
-
-```r
-# Key settings in the USER CONFIGURATION block:
-data_dir           <- "../data/"
-gene_counts_file   <- "rsem.merged.gene_counts.tsv"
-gene_tpm_file      <- "rsem.merged.gene_tpm.tsv"
-metadata_file      <- "metadata_validated.csv"
-result_dir         <- "../results/"
-
-control_genotype   <- "Your_Control_Genotype"
-case_genotypes     <- c("Case_1", "Case_2", "Case_3")
-age_groups         <- c(4, 12)
-organism_db        <- "org.Mm.eg.db"
-kegg_organism      <- "mmu"
-
-# Transgene handling — set TRUE only if your model has human transgenes
-has_transgenes     <- FALSE
-
-rmarkdown::render("notebooks/03_RNAseq_Pipeline.Rmd")
-```
-
-**Step 3:** Configure and run notebook 04 (optional):
-
-```r
-# Enable only the analyses you have reference data for
-run_module_corr_fc <- TRUE
-run_module_corr_lm <- TRUE
-run_subtype_corr   <- TRUE
-run_lm_analysis    <- TRUE
-run_biodomain_ora  <- TRUE
-run_biodomain_gsea <- TRUE
-
-rmarkdown::render("notebooks/04_RNAseq_Human_Translation.Rmd")
-```
+All analyses used the mouse reference genome **GRCm38/mm10** with Ensembl annotation (release 97).
 
 ---
 
-## 📁 Input File Formats
+## Citation
 
-### Proteomics — Abundance Matrix
+If you use this workflow, please cite:
 
-```
-ProteinID,Sample1,Sample2,Sample3,...
-MAPT|peptide1,12.3,11.8,12.1,...
-APP|peptide2,10.5,10.2,10.8,...
-```
-
-- Rows = proteins; columns = samples
-- Values should be pre-normalized (e.g., TAMPOR-corrected, log2-scale)
-- ProteinID can be `Protein` or `Protein|Peptide` format
-
-### All Notebooks — Sample Metadata
-
-```
-X,Sex,Genotype,Age
-Sample1,Female,Control,4
-Sample2,Male,Control,4
-Sample3,Female,CaseA,4
-```
-
-- `X`: Sample ID — must exactly match column names in abundance/count matrix
-- `Sex`: Male / Female
-- `Genotype`: group labels matching your config variables
-- `Age`: numeric timepoint in months
-
-### Transcriptomics — Count Matrix
-
-Standard RSEM TSV output with `gene_id` as first column and one column per sample. See `docs/input_format.md` for full format details and edge cases.
+> Pandey RS, Kotredes KP, Sasner M, Howell GR, Carter GW. Differential splicing of neuronal genes in a Trem2\*R47H mouse model mimics alterations associated with Alzheimer's disease. *BMC Genomics*. 2023;24:172. https://doi.org/10.1186/s12864-023-09280-x
 
 ---
 
-## 🧪 Test with Example Data
-
-```r
-# For proteomics notebook 01, set in USER CONFIGURATION:
-data_dir       <- "../data/example/"
-abundance_file <- "example_abundance.csv"
-traits_file    <- "example_traits.csv"
-```
-
-Example data contains 20 proteins and 12 samples across 2 genotypes, 2 sexes, and 2 ages. Designed to verify end-to-end pipeline execution — enrichment results are not biologically meaningful at this scale.
-
----
-
-## 📊 Output Files
-
-| Output | Location | Generated by | Description |
-|--------|----------|--------------|-------------|
-| HTML Reports | `notebooks/` | All notebooks | Full rendered analysis with all plots |
-| Processed Proteomics Data | `data/Processed_DIA_Proteomics.RData` | Notebook 01 | Cleaned abundance matrix + traits |
-| ANOVA Results | `results/ANOVA_Results_DIA_Proteomics.Rdata` | Notebook 01 | All DEP results by comparison |
-| Proteomics Human Translation | `results/Human_Translation_Results.Rdata` | Notebook 02 | LM, module, BioDomain results |
-| Processed RNA-seq Data | `data/ProcessedData_RNAseq.RData` | Notebook 03 | Filtered count + TPM matrices |
-| DESeq2 Results | `results/DESeq2_Results_RNAseq.RData` | Notebook 03 | All DEG results by comparison |
-| LM Results (RNA-seq) | `results/LM_Results_RNAseq.RData` | Notebook 04 | LM estimates by gene and variant |
-| ORA BioDomain (RNA-seq) | `results/ORA_BioDomain_RNAseq.RData` | Notebook 04 | GO-ORA annotated with BioDomains |
-| GSEA BioDomain (RNA-seq) | `results/GSEA_BioDomain_RNAseq.RData` | Notebook 04 | GO-GSEA annotated with BioDomains |
-| RNA-seq Human Translation | `results/Human_Translation_RNAseq.RData` | Notebook 04 | All human correlation results |
-
----
-
-## 🔬 Methods Summary
-
-**Proteomics QC:** Sample distributions assessed by boxplot after normalization. Proteins with pipe-delimited IDs summarized to protein level by averaging duplicate entries. Probabilistic PCA (`pcaMethods::pca()`) accommodates missing values common in DIA data.
-
-**Differential Abundance (ANOVA):** One-way ANOVA per protein with Tukey HSD post-hoc correction, stratified by sex and age group. Only group pairs present in the data are tested — invalid comparisons are automatically skipped.
-
-**Transcriptomics QC:** Optional transgene merging for models with human gene inserts (configurable via lookup table). Sex validated using Xist and Ddx3y expression. Low-count genes pre-filtered by minimum TPM threshold.
-
-**Differential Expression (DESeq2):** Pairwise DESeq2 comparisons per sex and age stratum using raw integer counts. Genes annotated with symbols and Entrez IDs via `AnnotationDbi`.
-
-**Linear Modeling:** Per-gene/protein linear models estimate the independent contribution of each genotype while controlling for covariates (Age, Sex). Model formula and coefficients are fully user-configurable. Stratified by age group where relevant.
-
-**Pathway Enrichment:** KEGG over-representation analysis using `clusterProfiler::compareCluster()`. Gene set enrichment analysis (GSEA) using `clusterProfiler::gseGO()` on full ranked gene lists.
-
-**Human Translation:** Mouse model fold-changes and LM estimates correlated (Pearson) with human AMP-AD co-expression module signatures (sex-stratified and combined). GO enrichment results mapped to the AMP-AD BioDomain framework across 19 AD biological domains and sub-domains. AD subtype correlations against Nikhil et al. (ROSMAP, Mayo, MSBB) and Neff et al. (MSBB) reference datasets.
-
----
-
-## 📄 Published Study
-
-The upstream RNA-seq processing and splicing analysis workflow in this repository was used in:
-
-> **Pandey RS, Kotredes KP, Sasner M, Howell GR, Carter GW.** Differential splicing of neuronal genes in a Trem2\*R47H mouse model mimics alterations associated with Alzheimer's disease. *BMC Genomics*. 2023;24:172.
-> [https://doi.org/10.1186/s12864-023-09280-x](https://doi.org/10.1186/s12864-023-09280-x)
-
-The complete step-by-step bioinformatics workflow (FastQC → Trimmomatic → STAR → HTSeq/RSEM → DESeq2 → DEXSeq → IsoformSwitchAnalyzeR) is documented in [WORKFLOW.md](WORKFLOW.md).
-
----
-
-## 📖 Citation
-
-If you use this pipeline, please cite:
-
-> Pandey RS. Brain Multi-Omics Analysis Pipeline. GitHub: https://github.com/[your-username]/brain-multiomics-pipeline
-
-And the underlying tools:
-- [DESeq2](https://doi.org/10.1186/s13059-014-0550-8)
-- [clusterProfiler](https://doi.org/10.1016/j.xinn.2021.100141)
-- [EnhancedVolcano](https://doi.org/10.18129/B9.bioc.EnhancedVolcano)
-- [pcaMethods](https://doi.org/10.1093/bioinformatics/btm069)
-- [PCAtools](https://doi.org/10.18129/B9.bioc.PCAtools)
-- [AMP-AD BioDomain Framework](https://agora.adknowledgeportal.org)
-
----
-
-## 🤝 Contributing
-
-Issues and pull requests are welcome. Please open an issue first to discuss major changes.
-
----
-
-## 📄 License
+## License
 
 MIT — see [LICENSE](LICENSE) for details.
 
 ---
 
-## 📬 Contact
+## Contact
 
-**Ravi S Pandey**  
-GitHub: [@your-username](https://github.com/your-username)
+**Ravi S. Pandey**
+GitHub: [@pandeyravi15](https://github.com/pandeyravi15)
