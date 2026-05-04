@@ -55,18 +55,9 @@ The full step-by-step workflow is documented in [WORKFLOW.md](WORKFLOW.md).
 
 ## Data Availability
 
-Raw sequencing data and processed count matrices are available on Synapse:
+Raw sequencing data and processed count matrices are available via the AD Knowledge Portal:
 
-> [https://www.synapse.org/Synapse:syn71961630](https://www.synapse.org/Synapse:syn71961630)
-
-```bash
-# Download raw data using the Synapse client
-synapse get syn71990921   # gene raw counts
-synapse get syn71990919   # gene TPM
-synapse get syn71990920   # isoform raw counts
-synapse get syn71990918   # isoform TPM
-synapse get syn71990922   # metadata
-```
+> [https://adknowledgeportal.synapse.org/Explore/Studies/DetailsPage/StudyDetails?Study=syn66318364](https://adknowledgeportal.synapse.org/Explore/Studies/DetailsPage/StudyDetails?Study=syn66318364)
 
 ---
 
